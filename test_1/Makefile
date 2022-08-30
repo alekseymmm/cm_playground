@@ -12,6 +12,8 @@ HOST_CPP := host_l0.cpp
 
 APP := vector.l0.${PLATFORM_EXTENSION}
 
+all: ${APP}
+
 ${KERN_NAME}: ${KERN_CPP}
 	${CMC} -fcmocl -march=${PLATFORM} -emit-spirv -m64 \
 	-o ${KERN_NAME} -- ${KERN_CPP}
@@ -26,8 +28,6 @@ ${APP}: ${HOST_CPP} ${KERN_NAME}
 		-L${CSDK_DIR}/usr/lib/x86_64-linux-gnu -Wl,-rpath \
 		-Wl,${CSDK_DIR}/usr/lib/x86_64-linux-gnu  \
 		 ${HOST_CPP} -lze_loader -o ${APP}
-
-all: ${APP}
 
 clean:
 	rm -f *.o *.skl ${APP}
