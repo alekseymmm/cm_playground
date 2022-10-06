@@ -8,7 +8,7 @@
 			"name": "(gdb) test_2",
 			"type": "cppdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/test_2/vector.l0.skl",
+			"program": "${workspaceFolder}/test_2/main.l0.skl",
 			"args": [],
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}/test_2",

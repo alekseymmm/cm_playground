@@ -10,7 +10,7 @@ KERN_NAME := ${KERN_BASENAME}.spv.${PLATFORM_EXTENSION}
 
 HOST_CPP := host_l0.cpp
 
-APP := vector.l0.${PLATFORM_EXTENSION}
+APP := main.l0.${PLATFORM_EXTENSION}
 
 all: ${APP}
 
@@ -33,4 +33,3 @@ clean:
 	rm -f *.o *.skl ${APP}
 
 .PHONY: clean, all, kernel
-
