@@ -4,7 +4,7 @@ PLATFORM_EXTENSION=skl
 CSDK_DIR ?= /home/amarov/devel/intel/cm_sdk_20211028/
 CMC ?= $(CSDK_DIR)/usr/bin/cmc
 
-KERN_CPP := kernel_hello.cpp
+KERN_CPP := kernel.cpp
 KERN_BASENAME := $(basename ${KERN_CPP})
 KERN_NAME := ${KERN_BASENAME}.spv.${PLATFORM_EXTENSION}
 
@@ -23,7 +23,7 @@ ${KERN_NAME}: ${KERN_CPP}
 kernel: ${KERNEL_NAME}
 
 ${APP}: ${HOST_CPP} ${KERN_NAME}
-	g++ -m64 -DKERNEL=\"${KERN_NAME}\" \
+	g++ -m64 -O0 -g -DKERNEL=\"${KERN_NAME}\" \
 		-I${CSDK_DIR}/usr/include \
 		-L${CSDK_DIR}/usr/lib/x86_64-linux-gnu -Wl,-rpath \
 		-Wl,${CSDK_DIR}/usr/lib/x86_64-linux-gnu  \
@@ -33,4 +33,3 @@ clean:
 	rm -f *.o *.skl ${APP}
 
 .PHONY: clean, all, kernel
-
