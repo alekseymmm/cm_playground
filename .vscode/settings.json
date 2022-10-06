@@ -1,0 +1,30 @@
+{
+	"editor.insertSpaces": false,
+	"editor.tabSize": 8,
+	"C_Cpp.commentContinuationPatterns": [
+		"/*",
+		"/**",
+		"//"
+	],
+	"indent-to-bracket.useDefaultIndentationAfterEmptyBracket": false,
+	"editor.rulers": [
+	100
+	],
+	"editor.formatOnSaveMode": "modifications",
+	"editor.defaultFormatter": "ms-vscode.cpptools",
+	"editor.formatOnSave": true,
+	"clang-format.language.c.enable": true,
+	"files.associations": {
+		"random": "c",
+		"type_traits": "c",
+		"gf_vect.h": "c",
+		"utils.h": "c",
+		"stdlib.h": "c",
+		"intrin.h": "c",
+		"gf_test.h": "c",
+		"gf_perf_test.h": "c",
+		"time.h": "c",
+		"gf_ops.h": "c"
+	},
+	"C_Cpp.codeAnalysis.runAutomatically": false
+}
