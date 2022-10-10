@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
 					ZE_MODULE_FORMAT_IL_SPIRV,
 					sz,
 					code,
-					"-cmc",
+					"-vc-codegen",
 					nullptr };
 	CHECK(zeModuleCreate(context, device, &moduleDesc, &module, nullptr));
 

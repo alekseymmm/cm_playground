@@ -5,11 +5,12 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "/home/amarov/devel/intel/cm_sdk_20211028/usr/include",
+                "/home/amarov/devel/intel/cm_sdk_20211028/usr/include/cm",
                 "/home/amarov/devel/intel/cm_sdk_20211028/"
             ],
             "defines": [
                 "__GNUC__",
-                "__AVX2__"
+                "KERNEL=\"kernel.spv.skl\""
             ],
             "compilerPath": "/usr/bin/gcc",
             "cStandard": "gnu11",

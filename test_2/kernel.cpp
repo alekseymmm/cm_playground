@@ -32,5 +32,6 @@ extern "C" _GENX_MAIN_ void hello_world(int threadwidth) {
     unsigned int threadid = x + y*threadwidth;
 
     // Prints the thread ID along with a string message
-    printf("%u   Hello from GPU land\n", threadid);
+    printf("%u   Hello from GPU land. x=%u, y=%u, threadwidth=%u\n", threadid,
+	   x, y, threadwidth);
 }

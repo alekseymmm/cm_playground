@@ -137,14 +137,30 @@ int main(int argc, char* argv[])
 					0, "hello_world" };
 	CHECK(zeKernelCreate(module, &kernelDesc, &kernel));
 
+	uint32_t suggested_group_size_x, suggested_group_size_y,
+		suggested_group_size_z;
+	zeKernelSuggestGroupSize(kernel, 0, 0, 0, &suggested_group_size_x,
+				 &suggested_group_size_y,
+				 &suggested_group_size_z);
+	printf("suggested_group_size_x=%u, suggested_group_size_y=%u, suggested_group_size_z=%u\n",
+	       suggested_group_size_x, suggested_group_size_y,
+	       suggested_group_size_z);
 	int threadwidth = 8;
 	CHECK(zeKernelSetArgumentValue(kernel, 0, sizeof(int), &threadwidth));
 
 	// set group size - single KERNEL_SZ size entry per group
-	CHECK(zeKernelSetGroupSize(kernel, /*x*/ 1, /*y*/ 1, /*z*/ 1));
+	// CHECK(zeKernelSetGroupSize(kernel, /*x*/ 1, /*y*/ 1, /*z*/ 1));
+	// CHECK(zeKernelSetGroupSize(kernel,
+	// 			   /*x*/ suggested_group_size_x,
+	// 			   /*y*/ suggested_group_size_y,
+	// 			   /*z*/ suggested_group_size_z));
 
 	// launch - data split across multiple groups
-	ze_group_count_t groupCount = { 8, 1, 1 };
+	// ze_group_count_t groupCount = { 8, 1, 1 };
+
+	ze_group_count_t groupCount = { suggested_group_size_x,
+					suggested_group_size_y,
+					suggested_group_size_z };
 	CHECK(zeCommandListAppendLaunchKernel(commands, kernel, &groupCount,
 					      nullptr, 0, nullptr));
 
