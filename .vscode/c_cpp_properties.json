@@ -6,6 +6,7 @@
                 "${workspaceFolder}/**",
                 "/home/amarov/devel/intel/cm_sdk_20211028/usr/include",
                 "/home/amarov/devel/intel/cm_sdk_20211028/usr/include/cm",
+                "/home/amarov/devel/intel/cm_sdk_20211028/usr/include/libcm/",
                 "/home/amarov/devel/intel/cm_sdk_20211028/"
             ],
             "defines": [
@@ -13,9 +14,10 @@
                 "KERNEL=\"kernel.spv.skl\""
             ],
             "compilerPath": "/usr/bin/gcc",
-            "cStandard": "gnu11",
-            "cppStandard": "c++14",
-            "intelliSenseMode": "gcc-x64",
+            "forcedInclude": ["/home/amarov/devel/intel/cm_sdk_20211028/usr/include/libcm/cm/cm.h"],
+            "cStandard": "c11",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "linux-gcc-x64",
             "configurationProvider": "ms-vscode.makefile-tools"
         }
     ],

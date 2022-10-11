@@ -204,7 +204,7 @@ int main(int argc, char *argv[])
 				"FAIL: comparison at index[%d]: %d + %d => %d(host), but %d(gpu)\n",
 				i, src1[i], src2[i], (src1[i] + src2[i]),
 				dst[i]);
-			//exit(-1);
+			exit(-1);
 		}
 	fprintf(stderr, "PASSED\n");
 	return 0;
