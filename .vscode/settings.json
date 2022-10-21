@@ -26,5 +26,6 @@
 		"time.h": "c",
 		"gf_ops.h": "c"
 	},
-	"C_Cpp.codeAnalysis.runAutomatically": false
+	"C_Cpp.codeAnalysis.runAutomatically": false,
+	"C_Cpp.errorSquiggles": "enabledIfIncludesResolve"
 }

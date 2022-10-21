@@ -28,16 +28,23 @@ EXPORT_SIGNATURE(vector_add);
 #endif
 
 #define SZ 16
-_GENX_MAIN_ void vector_add(SurfaceIndex isurface1 SURFACE_TYPE,
-			    SurfaceIndex isurface2 SURFACE_TYPE,
-			    SurfaceIndex osurface SURFACE_TYPE)
+
+#ifndef __INTELLISENSE__
+_GENX_MAIN_
+#endif
+void vector_add(SurfaceIndex isurface1 SURFACE_TYPE,
+		SurfaceIndex isurface2 SURFACE_TYPE,
+		SurfaceIndex osurface SURFACE_TYPE)
+
 {
 	vector<int, SZ> ivector1;
 	vector<int, SZ> ivector2;
 	vector<int, SZ> ovector;
 
-	printf("gid(0)=%d, gid(1)=%d, lid(0)=%d, lid(1)=%d\n", cm_group_id(0),
-	       cm_group_id(1), cm_local_id(0), cm_local_id(1));
+	printf("group_count(0)=%d, group_count(1)=%d local_size(0)=%d local_size(1)=%d gid(0)=%d, gid(1)=%d, lid(0)=%d, lid(1)=%d, cm_linear_global_id=%d\n",
+	       cm_group_count(0), cm_group_count(1), cm_local_size(0),
+	       cm_local_size(1), cm_group_id(0), cm_group_id(1), cm_local_id(0),
+	       cm_local_id(1), cm_linear_global_id());
 	unsigned offset = sizeof(unsigned) * SZ * cm_group_id(0);
 	//
 	// read-in the arguments

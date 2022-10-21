@@ -8,38 +8,25 @@ SPDX-License-Identifier: MIT
 
 #include <cm/cm.h>
 
-#ifdef SHIM
-#include "shim_support.h"
-#else
-#define SHIM_API_EXPORT
-#endif
-extern "C" SHIM_API_EXPORT void vector_add(SurfaceIndex, SurfaceIndex,
-					   SurfaceIndex);
-
-// shim layer (CM kernel, OpenCL runtime, GPU)
-#ifdef SHIM
-EXPORT_SIGNATURE(vector_add);
-#endif
-
-#define SURFACE_TYPE [[type("buffer_t")]]
-#if defined(SHIM) || defined(CMRT_EMU)
-#undef SURFACE_TYPE
-#define SURFACE_TYPE
-#endif
-
 #define SZ 16
 
+// C := alpha*A*B + beta*C,
+// A(m x k) , B(k x n) , C(m x n)
+// kernel calulate 1x16 block of C
+extern "C"
 #ifndef __INTELLISENSE__
-_GENX_MAIN_
+	_GENX_MAIN_
 #endif
-void vector_add(SurfaceIndex isurface1 SURFACE_TYPE,
-		SurfaceIndex isurface2 SURFACE_TYPE,
-		SurfaceIndex osurface SURFACE_TYPE)
+	void
+	sgemm_kernel_am(int m, int n, int k, int ic, int jc,
+			SurfaceIndex indxA [[type("image2d_t float")]],
+			SurfaceIndex indxB [[type("image2d_t float")]],
+			SurfaceIndex indxC [[type("image2d_t float")]])
 
 {
-	vector<int, SZ> ivector1;
-	vector<int, SZ> ivector2;
-	vector<int, SZ> ovector;
+	// vector<int, SZ> ivector1;
+	// vector<int, SZ> ivector2;
+	// vector<int, SZ> ovector;
 
 	printf("group_count(0)=%d, group_count(1)=%d local_size(0)=%d local_size(1)=%d gid(0)=%d, gid(1)=%d, lid(0)=%d, lid(1)=%d, cm_linear_global_id=%d\n",
 	       cm_group_count(0), cm_group_count(1), cm_local_size(0),
@@ -48,10 +35,10 @@ void vector_add(SurfaceIndex isurface1 SURFACE_TYPE,
 	unsigned offset = sizeof(unsigned) * SZ * cm_group_id(0);
 	//
 	// read-in the arguments
-	read(isurface1, offset, ivector1);
-	read(isurface2, offset, ivector2);
-	// perform addition
-	ovector = ivector1 + ivector2;
-	// write-out the results
-	write(osurface, offset, ovector);
+	// read(isurface1, offset, ivector1);
+	// read(isurface2, offset, ivector2);
+	// // perform addition
+	// ovector = ivector1 + ivector2;
+	// // write-out the results
+	// write(osurface, offset, ovector);
 }

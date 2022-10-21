@@ -5,13 +5,13 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "(gdb) test_2",
+			"name": "(gdb) test_1",
 			"type": "cppdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/test_2/main.l0.skl",
+			"program": "${workspaceFolder}/test_3/main.l0.skl",
 			"args": [],
 			"stopAtEntry": false,
-			"cwd": "${workspaceFolder}/test_2",
+			"cwd": "${workspaceFolder}/test_3",
 			"environment": [],
 			"externalConsole": false,
 			"MIMode": "gdb",

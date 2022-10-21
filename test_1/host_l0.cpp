@@ -176,7 +176,7 @@ int main(int argc, char *argv[])
 	CHECK(zeKernelSetArgumentValue(kernel, 2, sizeof(d_c), &d_c));
 
 	// set group size - single KERNEL_SZ size entry per group
-	CHECK(zeKernelSetGroupSize(kernel, /*x*/ 1, /*y*/ 1, /*z*/ 1));
+	CHECK(zeKernelSetGroupSize(kernel, /*x*/ 2, /*y*/ 2, /*z*/ 1));
 
 	// launch - data split across multiple groups
 	ze_group_count_t groupCount = { SZ / KERNEL_SZ, 1, 1 };
