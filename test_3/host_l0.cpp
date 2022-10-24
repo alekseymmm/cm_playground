@@ -182,9 +182,9 @@ int main(int argc, char *argv[])
 	// uint32_t b_rows = 15, b_cols = 15;
 	// uint32_t c_rows = 15, c_cols = 15;
 	//
-	uint32_t a_rows = 16, a_cols = 16;
-	uint32_t b_rows = 16, b_cols = 16;
-	uint32_t c_rows = 16, c_cols = 16;
+	uint32_t a_rows = 32, a_cols = 32;
+	uint32_t b_rows = 32, b_cols = 32;
+	uint32_t c_rows = 32, c_cols = 32;
 
 	Matrix A_in(a_rows, a_cols, true);
 	Matrix B_in(b_rows, b_cols, true);
