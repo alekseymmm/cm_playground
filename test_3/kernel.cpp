@@ -38,18 +38,18 @@ extern "C"
 	uint32_t dst_row = ic;
 	vector<float, 16> res(zero);
 
-	for (int i = 0; i < k / SZ; i++) {
+	for (int kk = 0; kk < k; kk += SZ) {
 		vector<float, 16> a;
 		matrix<float, 16, 1> b;
 
-		read(indxA, i * SZ * sizeof(float), dst_row, a.select<8, 1>(0));
-		read(indxA, (i * SZ + 8) * sizeof(float), dst_row, a.select<8, 1>(8));
+		read(indxA, kk * sizeof(float), dst_row, a.select<8, 1>(0));
+		read(indxA, (kk + 8) * sizeof(float), dst_row, a.select<8, 1>(8));
 		// for (int i = 0; i < 16; i++)
 		// 	printf(" a(%d)=%.3f", i, a(i));
 		// printf("\n");
 
-		read(indxB, dst_col, i * SZ, b.select<8, 1, 1, 1>(0, 0));
-		read(indxB, dst_col, i * SZ + 8, b.select<8, 1, 1, 1>(8, 0));
+		read(indxB, dst_col, kk, b.select<8, 1, 1, 1>(0, 0));
+		read(indxB, dst_col, kk + 8, b.select<8, 1, 1, 1>(8, 0));
 		// for (int i = 0; i < 16; i++)
 		// 	printf(" b(%d, 0)=%.3f ", i, b(i, 0));
 		// printf("\n");
