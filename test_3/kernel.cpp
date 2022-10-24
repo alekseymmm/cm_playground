@@ -38,17 +38,19 @@ extern "C"
 	uint32_t dst_row = ic;
 
 	read(indxA, 0, dst_row, a.select<8, 1>(0));
-	// for (int i = 0; i < 8; i++)
+	read(indxA, 8 * sizeof(float), dst_row, a.select<8, 1>(8));
+	// for (int i = 0; i < 16; i++)
 	// 	printf(" a(%d)=%.3f", i, a(i));
 	// printf("\n");
 
 	read(indxB, dst_col, 0, b.select<8, 1, 1, 1>(0, 0));
-	// for (int i = 0; i < 8; i++)
+	read(indxB, dst_col, 8, b.select<8, 1, 1, 1>(8, 0));
+	// for (int i = 0; i < 16; i++)
 	// 	printf(" b(%d, 0)=%.3f ", i, b(i, 0));
 	// printf("\n");
 
 	a = b * a;
-	// for (int i = 0; i < 8; i++)
+	// for (int i = 0; i < 16; i++)
 	// 	printf(" a(%d)=%.3f", i, a(i));
 	// printf("\n");
 
@@ -64,6 +66,8 @@ extern "C"
 	vector<float, 1> c_old;
 	read(indxC, dst_col, dst_row, c_old.select<1, 1>(0));
 
+	// float val = c_old(0);
+	// printf("ic=%d, jc=%d old_c=%.3f\n", ic, jc, val);
 	vector<float, 1> res = c_old(0) + cm_sum<float>(a);
 
 	write(indxC, dst_col, dst_row, res);
