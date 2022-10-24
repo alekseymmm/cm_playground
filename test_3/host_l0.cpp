@@ -54,38 +54,116 @@ using namespace std;
 #define __ALIGN_KERNEL(x, a) __ALIGN_KERNEL_MASK(x, (typeof(x))(a)-1)
 #define ALIGN(x, a) __ALIGN_KERNEL((x), (a))
 
-static float *allocMatrix(int rows, int cols)
-{
-	float *a = NULL;
-	uint32_t rows_aligned = ALIGN(rows, KERNEL_ALIGN);
-	uint32_t cols_aligned = ALIGN(cols, KERNEL_ALIGN);
-
-	size_t size = sizeof(float) * rows_aligned * cols_aligned;
-
-	a = (float *)aligned_alloc(4096, size);
-	if (!a)
-		printf("failed to allocate matrix of size %lu\n", size);
-
-	return a;
-}
-
 static float randData(float low, float high)
 {
 	float t = (float)rand() / (float)RAND_MAX;
 	return (1.0f - t) * low + t * high;
 }
 
-static void initMatrix(float *a, int rows, int cols)
-{
-	for (int i = 0; i < rows; i++)
-		for (int j = 0; j < cols; j++)
-			a[i * cols + j] = randData(0.0f, 1.0f);
-}
+class Matrix {
+	float *M;
+	uint32_t nrows;
+	uint32_t nrows_aligned;
+	uint32_t ncols;
+	uint32_t ncols_aligned;
+
+    public:
+	float &operator()(int r, int c)
+	{
+		return M[r * ncols_aligned + c];
+	}
+
+	Matrix(uint32_t rows, uint32_t cols, bool init)
+	{
+		this->nrows = rows;
+		this->nrows_aligned = ALIGN(this->nrows, KERNEL_ALIGN);
+		this->ncols = cols;
+		this->ncols_aligned = ALIGN(this->ncols, KERNEL_ALIGN);
+
+		size_t size = sizeof(float) * this->nrows_aligned * this->ncols_aligned;
+
+		M = (float *)aligned_alloc(4096, size);
+
+		if (init)
+			for (int i = 0; i < rows; i++)
+				for (int j = 0; j < cols; j++)
+					(*this)(i, j) = randData(0.0f, 1.0f);
+	}
+
+#define CORRECTNESS_THRESHOLD 0.00002
+	bool operator==(Matrix &m)
+	{
+		double max_relerror = 0.0;
+		double max_abserror = 0.0;
+		for (int r = 0; r < nrows; r++)
+			for (int c = 0; c < ncols; c++) {
+				// printf("I=%3d N=%3d  %08x  %08x\n", r, c, *(unsigned int*)&(*this)(r,c), *(unsigned int *)&m(r,c));
+
+				double relerror = fabs((*this)(r, c) - m(r, c)) /
+						  max(fabs((*this)(r, c)), fabs(m(r, c)));
+				double abserror = fabs((*this)(r, c) - m(r, c));
+
+				max_relerror = max(max_relerror, relerror);
+				max_abserror = max(max_abserror, abserror);
+
+				if (relerror > CORRECTNESS_THRESHOLD) {
+					printf("Failure %f %f relerror: %lf at [%d, %d]\n",
+					       (*this)(r, c), m(r, c), relerror, r, c);
+					return false;
+				}
+			}
+		printf("max_relerror = %e  absolute error = %e\n", max_relerror, max_abserror);
+		return (max_relerror > CORRECTNESS_THRESHOLD) ? false : true;
+		return true;
+	}
+
+	bool operator!=(Matrix &m)
+	{
+		return !operator==(m);
+	}
+
+	Matrix(Matrix &m)
+		: nrows(m.nrows)
+		, nrows_aligned(m.nrows_aligned)
+		, ncols(m.ncols)
+		, ncols_aligned(m.ncols_aligned)
+	{
+		size_t size = sizeof(float) * this->nrows_aligned * this->ncols_aligned;
+
+		M = (float *)aligned_alloc(4096, size);
+		for (int i = 0; i < nrows; i++) {
+			for (int j = 0; j < ncols; j++)
+				(*this)(i, j) = m(i, j);
+		}
+	}
+
+	uint32_t rows()
+	{
+		return nrows;
+	};
+	uint32_t cols()
+	{
+		return nrows;
+	};
+	uint32_t ld()
+	{
+		return ncols_aligned;
+	}
+	float *data()
+	{
+		return M;
+	}
+
+	~Matrix()
+	{
+		free(M);
+	}
+};
 
 // C := alpha*A*B + beta*C,
 // A(m x k) , B(k x n) , C(m x n)
-static int sgemmNxN(int m, int n, int k, float alpha, float *A, int lda,
-		    float *B, int ldb, float beta, float *C, int ldc)
+static int sgemmNxN(int m, int n, int k, float alpha, float *A, int lda, float *B, int ldb,
+		    float beta, float *C, int ldc)
 {
 	for (int r = 0; r < m; r++)
 		for (int c = 0; c < n; c++) {
@@ -98,79 +176,39 @@ static int sgemmNxN(int m, int n, int k, float alpha, float *A, int lda,
 	return 0;
 }
 
-#define CORRECTNESS_THRESHOLD 0.00002
-bool matrixCmp(float *A, float *B, int rows, int cols)
-{
-	double max_relerror = 0.0;
-	double max_abserror = 0.0;
-	for (int r = 0; r < rows; r++)
-		for (int c = 0; c < cols; c++) {
-			// printf("I=%3d N=%3d  %08x  %08x\n", r, c, *(unsigned int*)&(*this)(r,c), *(unsigned int *)&m(r,c));
-
-			double relerror =
-				fabs(A[r * rows + c] - B[r * rows + c]) /
-				max(fabs(A[r * rows + c]),
-				    fabs(B[r * rows + c]));
-			double abserror =
-				fabs(A[r * rows + c] - B[r * rows + c]);
-
-			max_relerror = max(max_relerror, relerror);
-			max_abserror = max(max_abserror, abserror);
-
-			if (relerror > CORRECTNESS_THRESHOLD) {
-				printf("Failure %f %f relerror: %lf at [%d, %d]\n",
-				       A[r * rows + c], B[r * rows + c],
-				       relerror, r, c);
-				return false;
-			}
-		}
-	printf("max_relerror = %e  absolute error = %e\n", max_relerror,
-	       max_abserror);
-	return (max_relerror > CORRECTNESS_THRESHOLD) ? false : true;
-	return true;
-}
-
 int main(int argc, char *argv[])
 {
-	uint32_t a_rows = 15, a_cols = 15;
-	uint32_t b_rows = 15, b_cols = 15;
-	uint32_t c_rows = 15, c_cols = 15;
+	// uint32_t a_rows = 15, a_cols = 15;
+	// uint32_t b_rows = 15, b_cols = 15;
+	// uint32_t c_rows = 15, c_cols = 15;
+	//
+	uint32_t a_rows = 8, a_cols = 8;
+	uint32_t b_rows = 8, b_cols = 8;
+	uint32_t c_rows = 8, c_cols = 8;
 
-	float *A_in = NULL, *B_in = NULL, *C_out = NULL, *C_gold = NULL;
-
-	A_in = allocMatrix(a_rows, a_cols);
-	B_in = allocMatrix(b_rows, b_cols);
-	C_out = allocMatrix(c_rows, c_cols);
-	C_gold = allocMatrix(c_rows, c_cols);
-
-	if (!A_in || !B_in || !C_out || !C_gold) {
-		free(A_in);
-		free(B_in);
-		free(C_out);
-		free(C_gold);
-		return -ENOMEM;
-	}
-
-	initMatrix(A_in, a_rows, a_cols);
-	initMatrix(B_in, b_rows, b_cols);
-	initMatrix(C_out, c_rows, c_cols);
-	memcpy(C_gold, C_out, c_rows * c_cols * sizeof(float));
+	Matrix A_in(a_rows, a_cols, true);
+	Matrix B_in(b_rows, b_cols, true);
+	Matrix C_out(c_rows, c_cols, true);
+	Matrix C_out_gpu(C_out);
+	Matrix C_old(C_out);
+	Matrix C_test(C_out);
 
 	float alpha = +1.0, beta = +1.0;
 
-	sgemmNxN(a_rows, b_cols, b_rows, alpha, A_in, a_cols, B_in, b_cols,
-		 beta, C_out, c_cols);
+	sgemmNxN(a_rows, b_cols, b_rows, alpha, A_in.data(), A_in.ld(), B_in.data(), B_in.ld(),
+		 beta, C_out.data(), C_out.ld());
 	printf("sgemmNxN multiplication is done\n");
 
-	cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, a_rows, b_cols,
-		    b_rows, alpha, A_in, a_cols, B_in, b_cols, beta, C_gold,
-		    c_cols);
+	cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, a_rows, b_cols, b_rows, alpha,
+		    A_in.data(), A_in.ld(), B_in.data(), B_in.ld(), beta, C_test.data(),
+		    C_test.ld());
 	printf("cblas_sgemm multiplication is done\n");
 
-	if (!matrixCmp(C_out, C_gold, c_rows, c_cols)) {
+	if (C_out != C_test) {
 		printf("Multiplication error\n");
 	} else
 		printf("Multiplication test PASSED\n");
+
 	// initialize GPU
 	ze_driver_handle_t driver = nullptr;
 	ze_device_handle_t device = nullptr;
@@ -248,8 +286,8 @@ int main(int argc, char *argv[])
 				   ZE_IMAGE_FLAG_KERNEL_WRITE,
 				   ZE_IMAGE_TYPE_2D,
 				   img_fmt,
-				   ALIGN(a_cols, KERNEL_ALIGN),
-				   ALIGN(a_rows, KERNEL_ALIGN),
+				   A_in.ld(),
+				   A_in.rows(),
 				   0,
 				   0,
 				   0 };
@@ -261,8 +299,8 @@ int main(int argc, char *argv[])
 				   ZE_IMAGE_FLAG_KERNEL_WRITE,
 				   ZE_IMAGE_TYPE_2D,
 				   img_fmt,
-				   ALIGN(b_cols, KERNEL_ALIGN),
-				   ALIGN(b_rows, KERNEL_ALIGN),
+				   B_in.ld(),
+				   B_in.rows(),
 				   0,
 				   0,
 				   0 };
@@ -274,19 +312,19 @@ int main(int argc, char *argv[])
 				   ZE_IMAGE_FLAG_KERNEL_WRITE,
 				   ZE_IMAGE_TYPE_2D,
 				   img_fmt,
-				   ALIGN(c_cols, KERNEL_ALIGN),
-				   ALIGN(c_rows, KERNEL_ALIGN),
+				   C_out_gpu.ld(),
+				   C_out_gpu.rows(),
 				   0,
 				   0,
 				   0 };
 	CHECK(zeImageCreate(context, device, &desc_C, &hCImage));
 
-	CHECK(zeCommandListAppendImageCopyFromMemory(
-		commands, hAImage, &A_in, nullptr, nullptr, 0, nullptr));
-	CHECK(zeCommandListAppendImageCopyFromMemory(
-		commands, hBImage, &B_in, nullptr, nullptr, 0, nullptr));
-	CHECK(zeCommandListAppendImageCopyFromMemory(
-		commands, hCImage, &C_out, nullptr, nullptr, 0, nullptr));
+	CHECK(zeCommandListAppendImageCopyFromMemory(commands, hAImage, A_in.data(), nullptr,
+						     nullptr, 0, nullptr));
+	CHECK(zeCommandListAppendImageCopyFromMemory(commands, hBImage, B_in.data(), nullptr,
+						     nullptr, 0, nullptr));
+	CHECK(zeCommandListAppendImageCopyFromMemory(commands, hCImage, C_out_gpu.data(), nullptr,
+						     nullptr, 0, nullptr));
 
 	CHECK(zeCommandListAppendBarrier(commands, nullptr, 0, nullptr));
 
@@ -321,12 +359,13 @@ int main(int argc, char *argv[])
 	// set group size - single KERNEL_SZ size entry per group
 	CHECK(zeKernelSetGroupSize(kernel, /*x*/ 1, /*y*/ 1, /*z*/ 1));
 
-	unsigned int nThreadsX = ALIGN(c_cols, KERNEL_ALIGN) / 16;
-	unsigned int nThreadsY = c_rows;
+	// unsigned int nThreadsX = ALIGN(c_cols, KERNEL_ALIGN) / 1;
+	unsigned int nThreadsX = 1; //c_cols;
+	unsigned int nThreadsY = 1; //c_rows;
 	ze_group_count_t groupCount = { nThreadsX, nThreadsY, 1 };
 
 	for (int ic = 0; ic < c_rows; ic++) {
-		for (int jc = 0; jc < c_rows; jc += 16) {
+		for (int jc = 0; jc < c_cols; jc += 1) {
 			/*kernel declarartion
 			* sgemm_kernel_am(int m, int n, int k, int ic, int jc,
 			* SurfaceIndex indxA [[type("image2d_t float")]],
@@ -358,17 +397,16 @@ int main(int argc, char *argv[])
 
 	CHECK(zeCommandListAppendBarrier(commands, nullptr, 0, nullptr));
 	// copy result to host
-	CHECK(zeCommandListAppendImageCopyToMemory(
-		commands, C_out, hCImage, nullptr, nullptr, 0, nullptr));
+	CHECK(zeCommandListAppendImageCopyToMemory(commands, C_out_gpu.data(), hCImage, nullptr,
+						   nullptr, 0, nullptr));
 
 	// send to GPU
 	CHECK(zeCommandListClose(commands));
 	CHECK(zeCommandQueueExecuteCommandLists(queue, 1, &commands, nullptr));
 
-	//think about sync
-	//    CHECK(zeCommandQueueSynchronize(hCommandQueue,
-	//	std::numeric_limits<uint32_t>::max()));
-	// // send to GPU
+	// think about sync
+	// CHECK(zeCommandQueueSynchronize(queue, std::numeric_limits<uint32_t>::max()));
+	// send to GPU
 	//
 
 	// // process output and cleanup
@@ -385,7 +423,11 @@ int main(int argc, char *argv[])
 	// 			dst[i]);
 	// 		exit(-1);
 	// 	}
-	fprintf(stderr, "PASSED\n");
+	//
+	if (C_out_gpu != C_test) {
+		printf("GPU Multiplication error\n");
+	} else
+		printf("GPU Multiplication test PASSED\n");
 
 	zeImageDestroy(hAImage);
 	zeImageDestroy(hBImage);
@@ -394,9 +436,7 @@ int main(int argc, char *argv[])
 	zeCommandListDestroy(commands);
 	zeContextDestroy(context);
 
-	free(A_in);
-	free(B_in);
-	free(C_out);
-	free(C_gold);
+	printf("done\n");
+
 	return 0;
 }

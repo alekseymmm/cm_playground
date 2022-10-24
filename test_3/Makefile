@@ -15,7 +15,7 @@ APP := main.l0.${PLATFORM_EXTENSION}
 all: ${APP}
 
 ${KERN_NAME}: ${KERN_CPP}
-	${CMC} -g -O0 -fcmocl -march=${PLATFORM} -emit-spirv -m64 \
+	${CMC} -Wall -g -O0 -fcmocl -march=${PLATFORM} -emit-spirv -m64 \
 	-o ${KERN_NAME} -- ${KERN_CPP}
 
 	echo "kenel ${KERN_NAME} is generated"
