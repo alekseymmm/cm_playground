@@ -182,9 +182,11 @@ int main(int argc, char *argv[])
 	// uint32_t b_rows = 15, b_cols = 15;
 	// uint32_t c_rows = 15, c_cols = 15;
 	//
-	uint32_t a_rows = 1024, a_cols = 1024;
-	uint32_t b_rows = 1024, b_cols = 1024;
-	uint32_t c_rows = 1024, c_cols = 1024;
+	uint32_t a_rows = 16, a_cols = 16;
+	uint32_t b_rows = 16, b_cols = 16;
+	uint32_t c_rows = 16, c_cols = 16;
+
+	int nIterations = 1;
 
 	Matrix A_in(a_rows, a_cols, true);
 	Matrix B_in(b_rows, b_cols, true);
@@ -262,21 +264,16 @@ int main(int argc, char *argv[])
 	CHECK(zeContextCreate(driver, &contextDesc, &context));
 
 	// create a command queue and list
-	ze_command_queue_desc_t commandQueueDesc = {
-		ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC,
-		nullptr,
-		0,
-		0,
-		0,
-		ZE_COMMAND_QUEUE_MODE_SYNCHRONOUS,
-		ZE_COMMAND_QUEUE_PRIORITY_NORMAL
-	};
+	ze_command_queue_desc_t commandQueueDesc = { ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC,
+						     nullptr,
+						     0,
+						     0,
+						     0,
+						     ZE_COMMAND_QUEUE_MODE_DEFAULT,
+						     ZE_COMMAND_QUEUE_PRIORITY_NORMAL };
 	CHECK(zeCommandQueueCreate(context, device, &commandQueueDesc, &queue));
-	ze_command_list_desc_t commandListDesc = {
-		ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, nullptr, 0, 0
-	};
-	CHECK(zeCommandListCreate(context, device, &commandListDesc,
-				  &commands));
+
+	CHECK(zeCommandListCreateImmediate(context, device, &commandQueueDesc, &commands));
 
 	ze_image_format_t img_fmt = { ZE_IMAGE_FORMAT_LAYOUT_32,
 				      ZE_IMAGE_FORMAT_TYPE_FLOAT };
@@ -374,40 +371,53 @@ int main(int argc, char *argv[])
 	// ze_group_count_t groupCount = { nThreadsX, nThreadsY, 1 };
 	ze_group_count_t groupCount = { c_cols, c_rows, 1 };
 
-	for (int ic = 0; ic < 1 /* c_rows*/; ic++) {
-		for (int jc = 0; jc < 1 /*c_cols*/; jc += 1) {
-			/*kernel declarartion
+	/* create event pool */
+	ze_event_pool_desc_t pool_desc = { ZE_STRUCTURE_TYPE_EVENT_POOL_DESC, nullptr,
+					   ZE_EVENT_POOL_FLAG_KERNEL_TIMESTAMP, 1 };
+	ze_event_pool_handle_t hPool = nullptr;
+	CHECK(zeEventPoolCreate(context, &pool_desc, 1, &device, &hPool));
+
+	/* create event */
+	ze_event_desc_t desc = { ZE_STRUCTURE_TYPE_EVENT_DESC, nullptr, 0, 0, 0 };
+	ze_event_handle_t hEvent = nullptr;
+	CHECK(zeEventCreate(hPool, &desc, &hEvent));
+
+	for (int iter = 0; iter < nIterations; iter++) {
+		/*kernel declarartion
 			* sgemm_kernel_am(int m, int n, int k,
 			* SurfaceIndex indxA [[type("image2d_t float")]],
 			* SurfaceIndex indxB [[type("image2d_t float")]],
 			* SurfaceIndex indxC [[type("image2d_t float")]])
 			*/
-			CHECK(zeKernelSetArgumentValue(kernel, 0, sizeof(a_rows), &a_rows));
-			CHECK(zeKernelSetArgumentValue(kernel, 1, sizeof(b_cols), &b_cols));
-			CHECK(zeKernelSetArgumentValue(kernel, 2, sizeof(a_cols), &a_cols));
+		CHECK(zeKernelSetArgumentValue(kernel, 0, sizeof(a_rows), &a_rows));
+		CHECK(zeKernelSetArgumentValue(kernel, 1, sizeof(b_cols), &b_cols));
+		CHECK(zeKernelSetArgumentValue(kernel, 2, sizeof(a_cols), &a_cols));
 
-			CHECK(zeKernelSetArgumentValue(kernel, 3, sizeof(hAImage), &hAImage));
-			CHECK(zeKernelSetArgumentValue(kernel, 4, sizeof(hBImage), &hBImage));
-			CHECK(zeKernelSetArgumentValue(kernel, 5, sizeof(hCImage), &hCImage));
+		CHECK(zeKernelSetArgumentValue(kernel, 3, sizeof(hAImage), &hAImage));
+		CHECK(zeKernelSetArgumentValue(kernel, 4, sizeof(hBImage), &hBImage));
+		CHECK(zeKernelSetArgumentValue(kernel, 5, sizeof(hCImage), &hCImage));
 
-			CHECK(zeCommandListAppendLaunchKernel(
-				commands, kernel, &groupCount, nullptr, 0,
-				nullptr));
-		}
+		CHECK(zeCommandListAppendLaunchKernel(commands, kernel, &groupCount, hEvent, 0,
+						      nullptr));
+		zeEventHostSynchronize(hEvent, std::numeric_limits<uint32_t>::max());
+
+		CHECK(zeEventHostReset(hEvent));
 	}
 
-	CHECK(zeCommandListAppendBarrier(commands, nullptr, 0, nullptr));
+	// CHECK(zeCommandListAppendBarrier(commands, nullptr, 0, nullptr));
 	// copy result to host
 	CHECK(zeCommandListAppendImageCopyToMemory(commands, C_out_gpu.data(), hCImage, nullptr,
-						   nullptr, 0, nullptr));
+						   hEvent, 0, nullptr));
+	zeEventHostSynchronize(hEvent, std::numeric_limits<uint32_t>::max());
+
 	// CHECK(zeCommandListAppendBarrier(commands, nullptr, 0, nullptr));
 
 	// send to GPU
-	CHECK(zeCommandListClose(commands));
-	CHECK(zeCommandQueueExecuteCommandLists(queue, 1, &commands, nullptr));
+	// CHECK(zeCommandListClose(commands));
+	// CHECK(zeCommandQueueExecuteCommandLists(queue, 1, &commands, nullptr));
 
 	// think about sync
-	CHECK(zeCommandQueueSynchronize(queue, std::numeric_limits<uint32_t>::max()));
+	// CHECK(zeCommandQueueSynchronize(queue, std::numeric_limits<uint32_t>::max()));
 	// send to GPU
 	//
 
