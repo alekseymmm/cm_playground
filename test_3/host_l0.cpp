@@ -339,7 +339,16 @@ int main(int argc, char *argv[])
 	rewind(fp);
 
 	unsigned char *code = (unsigned char *)malloc(sz);
-	fread(code, 1, sz, fp);
+	size_t ret = fread(code, 1, sz, fp);
+	if (ret != sz) {
+		if (feof(fp))
+			printf("Error reading kernel: unexpected end of file\n");
+		else if (ferror(fp)) {
+			perror("Error reading kernel\n");
+		}
+		fclose(fp);
+		exit(-1);
+	}
 	fclose(fp);
 
 	ze_module_desc_t moduleDesc = { ZE_STRUCTURE_TYPE_MODULE_DESC,
@@ -368,7 +377,7 @@ int main(int argc, char *argv[])
 	for (int ic = 0; ic < 1 /* c_rows*/; ic++) {
 		for (int jc = 0; jc < 1 /*c_cols*/; jc += 1) {
 			/*kernel declarartion
-			* sgemm_kernel_am(int m, int n, int k, int ic, int jc,
+			* sgemm_kernel_am(int m, int n, int k,
 			* SurfaceIndex indxA [[type("image2d_t float")]],
 			* SurfaceIndex indxB [[type("image2d_t float")]],
 			* SurfaceIndex indxC [[type("image2d_t float")]])
@@ -376,14 +385,10 @@ int main(int argc, char *argv[])
 			CHECK(zeKernelSetArgumentValue(kernel, 0, sizeof(a_rows), &a_rows));
 			CHECK(zeKernelSetArgumentValue(kernel, 1, sizeof(b_cols), &b_cols));
 			CHECK(zeKernelSetArgumentValue(kernel, 2, sizeof(a_cols), &a_cols));
-			CHECK(zeKernelSetArgumentValue(kernel, 3, sizeof(ic), &ic));
-			CHECK(zeKernelSetArgumentValue(kernel, 4, sizeof(jc), &jc));
-			CHECK(zeKernelSetArgumentValue(
-				kernel, 5, sizeof(hAImage), &hAImage));
-			CHECK(zeKernelSetArgumentValue(
-				kernel, 6, sizeof(hBImage), &hBImage));
-			CHECK(zeKernelSetArgumentValue(
-				kernel, 7, sizeof(hCImage), &hCImage));
+
+			CHECK(zeKernelSetArgumentValue(kernel, 3, sizeof(hAImage), &hAImage));
+			CHECK(zeKernelSetArgumentValue(kernel, 4, sizeof(hBImage), &hBImage));
+			CHECK(zeKernelSetArgumentValue(kernel, 5, sizeof(hCImage), &hCImage));
 
 			CHECK(zeCommandListAppendLaunchKernel(
 				commands, kernel, &groupCount, nullptr, 0,
