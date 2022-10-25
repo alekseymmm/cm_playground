@@ -15,7 +15,7 @@ APP := main.l0.${PLATFORM_EXTENSION}
 all: ${APP}
 
 ${KERN_NAME}: ${KERN_CPP}
-	${CMC} -Wall -g -O0 -fcmocl -march=${PLATFORM} -emit-spirv -m64 \
+	${CMC} -Wall -g -O2 -fcmocl -march=${PLATFORM} -emit-spirv -m64 \
 	-o ${KERN_NAME} -- ${KERN_CPP}
 
 	echo "kenel ${KERN_NAME} is generated"
@@ -23,7 +23,7 @@ ${KERN_NAME}: ${KERN_CPP}
 kernel: ${KERNEL_NAME}
 
 ${APP}: ${HOST_CPP} ${KERN_NAME}
-	g++ -g -O0 -m64 -DKERNEL=\"${KERN_NAME}\" \
+	g++ -g -O2 -m64 -DKERNEL=\"${KERN_NAME}\" \
 		-I${CSDK_DIR}/usr/include \
 		-L${CSDK_DIR}/usr/lib/x86_64-linux-gnu -Wl,-rpath \
 		-Wl,${CSDK_DIR}/usr/lib/x86_64-linux-gnu  \

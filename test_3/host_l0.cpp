@@ -182,9 +182,9 @@ int main(int argc, char *argv[])
 	// uint32_t b_rows = 15, b_cols = 15;
 	// uint32_t c_rows = 15, c_cols = 15;
 	//
-	uint32_t a_rows = 31, a_cols = 31;
-	uint32_t b_rows = 31, b_cols = 31;
-	uint32_t c_rows = 31, c_cols = 31;
+	uint32_t a_rows = 1024, a_cols = 1024;
+	uint32_t b_rows = 1024, b_cols = 1024;
+	uint32_t c_rows = 1024, c_cols = 1024;
 
 	Matrix A_in(a_rows, a_cols, true);
 	Matrix B_in(b_rows, b_cols, true);
@@ -360,28 +360,24 @@ int main(int argc, char *argv[])
 	CHECK(zeKernelSetGroupSize(kernel, /*x*/ 1, /*y*/ 1, /*z*/ 1));
 
 	// unsigned int nThreadsX = ALIGN(c_cols, KERNEL_ALIGN) / 1;
-	unsigned int nThreadsX = 1; //c_cols;
-	unsigned int nThreadsY = 1; //c_rows;
-	ze_group_count_t groupCount = { nThreadsX, nThreadsY, 1 };
+	unsigned int nThreadsX = 1;
+	unsigned int nThreadsY = 1;
+	// ze_group_count_t groupCount = { nThreadsX, nThreadsY, 1 };
+	ze_group_count_t groupCount = { c_cols, c_rows, 1 };
 
-	for (int ic = 0; ic < c_rows; ic++) {
-		for (int jc = 0; jc < c_cols; jc += 1) {
+	for (int ic = 0; ic < 1 /* c_rows*/; ic++) {
+		for (int jc = 0; jc < 1 /*c_cols*/; jc += 1) {
 			/*kernel declarartion
 			* sgemm_kernel_am(int m, int n, int k, int ic, int jc,
 			* SurfaceIndex indxA [[type("image2d_t float")]],
 			* SurfaceIndex indxB [[type("image2d_t float")]],
 			* SurfaceIndex indxC [[type("image2d_t float")]])
 			*/
-			CHECK(zeKernelSetArgumentValue(
-				kernel, 0, sizeof(a_rows), &a_rows));
-			CHECK(zeKernelSetArgumentValue(
-				kernel, 1, sizeof(b_cols), &b_cols));
-			CHECK(zeKernelSetArgumentValue(
-				kernel, 2, sizeof(b_rows), &b_rows));
-			CHECK(zeKernelSetArgumentValue(kernel, 3, sizeof(ic),
-						       &ic));
-			CHECK(zeKernelSetArgumentValue(kernel, 4, sizeof(jc),
-						       &jc));
+			CHECK(zeKernelSetArgumentValue(kernel, 0, sizeof(a_rows), &a_rows));
+			CHECK(zeKernelSetArgumentValue(kernel, 1, sizeof(b_cols), &b_cols));
+			CHECK(zeKernelSetArgumentValue(kernel, 2, sizeof(a_cols), &a_cols));
+			CHECK(zeKernelSetArgumentValue(kernel, 3, sizeof(ic), &ic));
+			CHECK(zeKernelSetArgumentValue(kernel, 4, sizeof(jc), &jc));
 			CHECK(zeKernelSetArgumentValue(
 				kernel, 5, sizeof(hAImage), &hAImage));
 			CHECK(zeKernelSetArgumentValue(
@@ -399,13 +395,14 @@ int main(int argc, char *argv[])
 	// copy result to host
 	CHECK(zeCommandListAppendImageCopyToMemory(commands, C_out_gpu.data(), hCImage, nullptr,
 						   nullptr, 0, nullptr));
+	// CHECK(zeCommandListAppendBarrier(commands, nullptr, 0, nullptr));
 
 	// send to GPU
 	CHECK(zeCommandListClose(commands));
 	CHECK(zeCommandQueueExecuteCommandLists(queue, 1, &commands, nullptr));
 
 	// think about sync
-	// CHECK(zeCommandQueueSynchronize(queue, std::numeric_limits<uint32_t>::max()));
+	CHECK(zeCommandQueueSynchronize(queue, std::numeric_limits<uint32_t>::max()));
 	// send to GPU
 	//
 
