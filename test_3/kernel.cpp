@@ -20,17 +20,18 @@ extern "C"
 	       SurfaceIndex indxA [[type("image2d_t float")]],
 	       SurfaceIndex indxB [[type("image2d_t float")]], matrix_ref<float, SZ, SZ> C)
 {
-	for (int i = 0; i < SZ; i++) {
-		for (int j = 0; j < SZ; j++) {
-			vector<float, SZ> res(zero);
+	for (int kk = 0; kk < k; kk += SZ) {
+#pragma unroll
+		for (int i = 0; i < SZ; i++) {
+			vector<float, SZ> a;
+			read(indxA, kk * sizeof(float), dst_row + i, a.select<8, 1>(0));
+			read(indxA, (kk + 8) * sizeof(float), dst_row + i, a.select<8, 1>(8));
+#pragma unroll
+			for (int j = 0; j < SZ; j++) {
+				vector<float, SZ> res(zero);
 
-			for (int kk = 0; kk < k; kk += SZ) {
-				vector<float, SZ> a;
 				matrix<float, SZ, 1> b;
 
-				read(indxA, kk * sizeof(float), dst_row + i, a.select<8, 1>(0));
-				read(indxA, (kk + 8) * sizeof(float), dst_row + i,
-				     a.select<8, 1>(8));
 				// for (int ii = 0; ii < 16; ii++)
 				// 	printf(" a(%d)=%.3f", ii, a(ii));
 				// printf("\n");
@@ -52,11 +53,11 @@ extern "C"
 				// read(indxB, dst_col + j * sizeof(float), kk + 24,
 				//      b.select<8, 1, 1, 1>(24, 0));
 
-				a = b * a;
-				res += a;
+				b = b * a;
+				C(i, j) += cm_sum<float>(b);
 			}
 			// float c_old = C(i, j);
-			C(i, j) += cm_sum<float>(res);
+			// C(i, j) += cm_sum<float>(res);
 			// printf("i=%d j=%d c_old=%.3f, c_new=%.3f\n", i, j, c_old, C(i, j));
 		}
 	}

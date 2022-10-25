@@ -212,19 +212,19 @@ int main(int argc, char *argv[])
 
 	float alpha = +1.0, beta = +1.0;
 
-	// sgemmNxN(a_rows, b_cols, b_rows, alpha, A_in.data(), A_in.ld(), B_in.data(), B_in.ld(),
-	// 	 beta, C_out.data(), C_out.ld());
-	// printf("sgemmNxN multiplication is done\n");
+	sgemmNxN(a_rows, b_cols, b_rows, alpha, A_in.data(), A_in.ld(), B_in.data(), B_in.ld(),
+		 beta, C_out.data(), C_out.ld());
+	printf("sgemmNxN multiplication is done\n");
 
-	// cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, a_rows, b_cols, b_rows, alpha,
-	// 	    A_in.data(), A_in.ld(), B_in.data(), B_in.ld(), beta, C_test.data(),
-	// 	    C_test.ld());
-	// printf("cblas_sgemm multiplication is done\n");
+	cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, a_rows, b_cols, b_rows, alpha,
+		    A_in.data(), A_in.ld(), B_in.data(), B_in.ld(), beta, C_test.data(),
+		    C_test.ld());
+	printf("cblas_sgemm multiplication is done\n");
 
-	// if (C_out != C_test) {
-	// 	printf("Multiplication error\n");
-	// } else
-	// 	printf("Multiplication test PASSED\n");
+	if (C_out != C_test) {
+		printf("Multiplication error\n");
+	} else
+		printf("Multiplication test PASSED\n");
 
 	// initialize GPU
 	ze_driver_handle_t driver = nullptr;
