@@ -18,6 +18,8 @@ SPDX-License-Identifier: MIT
 #include <cstring>
 #include <limits>
 
+#include <time.h>
+
 #include <level_zero/ze_api.h>
 
 #include <gsl/gsl_cblas.h>
@@ -176,15 +178,28 @@ static int sgemmNxN(int m, int n, int k, float alpha, float *A, int lda, float *
 	return 0;
 }
 
+#define NANO_SCALE 1000000000
+#define DIV_ROUND_UP(n, d) (((n) + (d)-1) / (d))
+static inline long long get_time_ns(void)
+{
+	struct timespec time;
+	long long nano_total;
+	clock_gettime(CLOCK_REALTIME, &time);
+	nano_total = time.tv_sec;
+	nano_total *= NANO_SCALE;
+	nano_total += time.tv_nsec;
+	return nano_total;
+}
+
 int main(int argc, char *argv[])
 {
 	// uint32_t a_rows = 15, a_cols = 15;
 	// uint32_t b_rows = 15, b_cols = 15;
 	// uint32_t c_rows = 15, c_cols = 15;
 	//
-	uint32_t a_rows = 16, a_cols = 16;
-	uint32_t b_rows = 16, b_cols = 16;
-	uint32_t c_rows = 16, c_cols = 16;
+	uint32_t a_rows = 1024, a_cols = 1024;
+	uint32_t b_rows = 1024, b_cols = 1024;
+	uint32_t c_rows = 1024, c_cols = 1024;
 
 	int nIterations = 1;
 
@@ -197,19 +212,19 @@ int main(int argc, char *argv[])
 
 	float alpha = +1.0, beta = +1.0;
 
-	sgemmNxN(a_rows, b_cols, b_rows, alpha, A_in.data(), A_in.ld(), B_in.data(), B_in.ld(),
-		 beta, C_out.data(), C_out.ld());
-	printf("sgemmNxN multiplication is done\n");
+	// sgemmNxN(a_rows, b_cols, b_rows, alpha, A_in.data(), A_in.ld(), B_in.data(), B_in.ld(),
+	// 	 beta, C_out.data(), C_out.ld());
+	// printf("sgemmNxN multiplication is done\n");
 
-	cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, a_rows, b_cols, b_rows, alpha,
-		    A_in.data(), A_in.ld(), B_in.data(), B_in.ld(), beta, C_test.data(),
-		    C_test.ld());
-	printf("cblas_sgemm multiplication is done\n");
+	// cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, a_rows, b_cols, b_rows, alpha,
+	// 	    A_in.data(), A_in.ld(), B_in.data(), B_in.ld(), beta, C_test.data(),
+	// 	    C_test.ld());
+	// printf("cblas_sgemm multiplication is done\n");
 
-	if (C_out != C_test) {
-		printf("Multiplication error\n");
-	} else
-		printf("Multiplication test PASSED\n");
+	// if (C_out != C_test) {
+	// 	printf("Multiplication error\n");
+	// } else
+	// 	printf("Multiplication test PASSED\n");
 
 	// initialize GPU
 	ze_driver_handle_t driver = nullptr;
@@ -245,9 +260,7 @@ int main(int argc, char *argv[])
 			CHECK(zeDeviceGetProperties(allDevices[d],
 						    &device_properties));
 			if (ZE_DEVICE_TYPE_GPU == device_properties.type) {
-				fprintf(stderr,
-					"INFO: GPU device located driver=%d, device=%d\n",
-					i, d);
+				printf("INFO: GPU device located driver=%d, device=%d\n", i, d);
 				driver = allDrivers[i];
 				device = allDevices[d];
 				break;
@@ -368,8 +381,8 @@ int main(int argc, char *argv[])
 	// unsigned int nThreadsX = ALIGN(c_cols, KERNEL_ALIGN) / 1;
 	unsigned int nThreadsX = 1;
 	unsigned int nThreadsY = 1;
-	// ze_group_count_t groupCount = { nThreadsX, nThreadsY, 1 };
-	ze_group_count_t groupCount = { c_cols, c_rows, 1 };
+	ze_group_count_t groupCount = { DIV_ROUND_UP(c_cols, 16), DIV_ROUND_UP(c_rows, 16), 1 };
+	// ze_group_count_t groupCount = { c_cols, c_rows, 1 };
 
 	/* create event pool */
 	ze_event_pool_desc_t pool_desc = { ZE_STRUCTURE_TYPE_EVENT_POOL_DESC, nullptr,
@@ -381,6 +394,8 @@ int main(int argc, char *argv[])
 	ze_event_desc_t desc = { ZE_STRUCTURE_TYPE_EVENT_DESC, nullptr, 0, 0, 0 };
 	ze_event_handle_t hEvent = nullptr;
 	CHECK(zeEventCreate(hPool, &desc, &hEvent));
+
+	unsigned long long kernel_ns = 0, host_ns = 0;
 
 	for (int iter = 0; iter < nIterations; iter++) {
 		/*kernel declarartion
@@ -397,12 +412,32 @@ int main(int argc, char *argv[])
 		CHECK(zeKernelSetArgumentValue(kernel, 4, sizeof(hBImage), &hBImage));
 		CHECK(zeKernelSetArgumentValue(kernel, 5, sizeof(hCImage), &hCImage));
 
+		long long host_start_ns = get_time_ns();
 		CHECK(zeCommandListAppendLaunchKernel(commands, kernel, &groupCount, hEvent, 0,
 						      nullptr));
 		zeEventHostSynchronize(hEvent, std::numeric_limits<uint32_t>::max());
 
+		long long host_end_ns = get_time_ns();
+		host_ns += (host_end_ns - host_start_ns);
+
+		ze_kernel_timestamp_result_t timestamp;
+		zeEventQueryKernelTimestamp(hEvent, &timestamp);
+		kernel_ns += (timestamp.context.kernelEnd - timestamp.context.kernelStart);
+
 		CHECK(zeEventHostReset(hEvent));
 	}
+
+	double avg_kern_ms = kernel_ns / 1000000.0f / nIterations;
+	double avg_host_ms = host_ns / 1000000.0f / nIterations; //milisec
+
+	printf("%-18s%.2lf msec\n", "kern time:", avg_kern_ms);
+	printf("%-18s%.2lf msec\n", "host time:", avg_host_ms);
+
+	double gflops;
+	gflops = ((2000.0f * a_rows * b_cols * a_cols) / (1.0f * 1024 * 1024 * 1024)) / avg_kern_ms;
+	printf("GEN SGEMM (kern-timer): %8.2lf Gflops\n", gflops);
+	gflops = ((2000.0f * a_rows * b_cols * a_cols) / (1.0f * 1024 * 1024 * 1024)) / avg_host_ms;
+	printf("GEN SGEMM (host-timer): %8.2lf Gflops\n", gflops);
 
 	// CHECK(zeCommandListAppendBarrier(commands, nullptr, 0, nullptr));
 	// copy result to host
