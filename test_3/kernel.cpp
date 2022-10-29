@@ -26,20 +26,15 @@ extern "C"
 			vector<float, SZ> a;
 			read(indxA, kk * sizeof(float), dst_row + i, a.select<8, 1>(0));
 			read(indxA, (kk + 8) * sizeof(float), dst_row + i, a.select<8, 1>(8));
+			// read(indxA, (kk + 16) * sizeof(float), dst_row + i, a.select<8, 1>(16));
+			// read(indxA, (kk + 24) * sizeof(float), dst_row + i, a.select<8, 1>(24));
+			// for (int ii = 0; ii < 16; ii++)
+			// 	printf(" a(%d)=%.3f", ii, a(ii));
+			// printf("\n");
+
 #pragma unroll
 			for (int j = 0; j < SZ; j++) {
-				vector<float, SZ> res(zero);
-
 				matrix<float, SZ, 1> b;
-
-				// for (int ii = 0; ii < 16; ii++)
-				// 	printf(" a(%d)=%.3f", ii, a(ii));
-				// printf("\n");
-
-				// read(indxA, (kk + 16) * sizeof(float), dst_row + i,
-				//      a.select<8, 1>(16));
-				// read(indxA, (kk + 24) * sizeof(float), dst_row + i,
-				//      a.select<8, 1>(24));
 
 				read(indxB, dst_col + j * sizeof(float), kk,
 				     b.select<8, 1, 1, 1>(0, 0));

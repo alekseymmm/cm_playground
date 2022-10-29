@@ -381,7 +381,8 @@ int main(int argc, char *argv[])
 	// unsigned int nThreadsX = ALIGN(c_cols, KERNEL_ALIGN) / 1;
 	unsigned int nThreadsX = 1;
 	unsigned int nThreadsY = 1;
-	ze_group_count_t groupCount = { DIV_ROUND_UP(c_cols, 16), DIV_ROUND_UP(c_rows, 16), 1 };
+	ze_group_count_t groupCount = { DIV_ROUND_UP(c_cols, KERNEL_SZ),
+					DIV_ROUND_UP(c_rows, KERNEL_SZ), 1 };
 	// ze_group_count_t groupCount = { c_cols, c_rows, 1 };
 
 	/* create event pool */
